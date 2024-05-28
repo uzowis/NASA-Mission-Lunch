@@ -1,0 +1,12 @@
+{
+  "name": "nasa-mission-lunch",
+  "version": "1.0.0",
+  "description": "This is a fullstack application. A NASA mission lunch and monitoring web application, built with the MERN tech stack.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
