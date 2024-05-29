@@ -4,7 +4,14 @@
   "description": "This is a fullstack application. A NASA mission lunch and monitoring web application, built with the MERN tech stack.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install-client": "npm install --prefix client",
+    "install-server": "npm install --prefix server",
+    "install": "npm run install-client && npm run install-server ",
+    "client": "npm start --prefix client",
+    "server": "npm run start --prefix server",
+    "watch": "npm run server& npm run client",
+    "deploy": "npm run build --prefix client&& npm run server"
   },
   "keywords": [],
   "author": "",
