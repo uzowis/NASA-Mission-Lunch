@@ -1,21 +1,24 @@
 const { getAllLaunches, addNewLaunch, existsWithLaunchId, abortLaunchById } = require('../../models/launches.model');
 
-function httpGetAllLaunches(req, res){
-    return res.status(200).json(getAllLaunches());
+async function httpGetAllLaunches(req, res){
+    return res.status(200).json( await getAllLaunches());
 }
 
-function httpAddNewLaunches(req, res){
+async function httpAddNewLaunches(req, res){
     const launch = req.body;
     
     // Validate the input to ensure the required fields are provided
     if(!launch.launchDate || !launch.mission || !launch.target || !launch.rocket){
-        return res.status(400).json({error : 'All fields are required! Try again'});
-    }else{
-        launchDate = new Date(launch.launchDate);
-        addNewLaunch(launch);
-        return res.status(201).json(launch);
-
+        return res.status(400).json({
+            error : 'All fields are required! Try again'
+        });
     }
+       
+    launchDate = new Date(launch.launchDate);
+    await addNewLaunch(launch);
+    return res.status(201).json(launch);
+
+    
 }
 
 function httpGetLaunchesById(req, res){
@@ -29,15 +32,31 @@ function httpGetLaunchesById(req, res){
     
 }
 
-function httpAbortLaunch(req, res){
+async function httpAbortLaunch(req, res){
     const launchId = Number(req.params.id);
 
-    if(!existsWithLaunchId(launchId)){
-        return res.status(404).json({error : 'Mission doesn\'t exist'});
-    }else{
-        const aborted = abortLaunchById(launchId);
-        return res.status(200).json(aborted);
+    // Check if a Launch with the LaunchId Exists
+    const launchExists = await existsWithLaunchId(launchId);
+
+    if(!launchExists){
+        return res.status(404).json({
+            error : 'Mission doesn\'t exist'
+        });
     }
+    console.log(launchExists);
+
+    const aborted = await abortLaunchById(launchId);
+    console.log(aborted);
+    
+    if(!aborted){
+        return res.status(400).json({
+            error : 'Launch not aborted'
+        });
+    }
+    return res.status(200).json({
+        ok : true,
+    });
+
 }
 
 
