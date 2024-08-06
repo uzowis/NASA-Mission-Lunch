@@ -1,47 +1,107 @@
+const axios = require('axios');
+
 const Launches = require('./launches.mongo');
 const Planets = require('./planets.mongo');
 
-// const launches = new Map();
 
 const DEFAULT_FLIGHTNUMBER = 100;
+const SPACEX_API_URL = 'https://api.spacexdata.com/v4/launches/query';
 
-// Program flow;
-// Preset Launch data
-const launch = {
-    flightNumber : 100,
-    mission : 'Kepler Exploration X',
-    rocket : 'Explorer IS1',
-    launchDate : new Date('August 29, 2026'),
-    target : 'Kepler-1652 b',
-    customer : ['ZTM', 'NASA', 'SPACE X'],
-    upcoming : true,
-    success : true
-};
+
+// popuplate launches data from spaceX API
+async function populateLaunches(){
+    const response =  await axios.post(SPACEX_API_URL, {
+        query : {},
+        options : {
+            pagination : false,
+            populate : [
+                {
+                    path : 'rocket',
+                    select : {
+                        name : 1
+                    }
+                },
+                {
+                    path : 'payloads',
+                    select : {
+                        customers : 1
+                    }
+                },
+
+            ]
+        }
+    });
+
+    // check if the request was successful
+    if(response.status !== 200){
+        console.log('Problem downloading Launch Data');
+        throw new Error('Launch Data failed to load');
+
+    }
+
+    // Map the spacex data into our DB
+    const launchDocs = response.data.docs;
+    for (const launchDoc of launchDocs){
+        const payloads = launchDoc['payloads'];
+        const customers = payloads.flatMap((payload) =>{
+            return payload['customers'];
+        });
+
+        
+        const launch = {
+            flightNumber : launchDoc['flight_number'],
+            mission : launchDoc['name'],
+            rocket : launchDoc['rocket']['name'],
+            launchDate : launchDoc['date_local'], 
+            customer: customers,
+            upcoming : launchDoc['upcoming'], // upcoming
+            success : launchDoc['success'], // success
+    
+        }
+
+        console.log(`${launch.flightNumber} ${launch.mission}`);
+        saveLaunch(launch);
+    }
+
+
+    
+    
+}
+
+
+// load the populated data into our local API Launches database.
+async function loadLaunchesData(){
+    // check if Launches data is already loaded
+    const checkFirstLaunch = await findLaunch({
+        flightNumber : 1,
+        rocket : 'Falcon 1',
+        mission : 'FalconSat',
+    });
+
+    if(checkFirstLaunch){
+        console.log('Launches Data is already loaded into Database');
+    }
+
+    await populateLaunches();
+}
+
+// Find Launch Function
+async function findLaunch(query){
+    return await Launches.findOne(query);
+}
 
 // Function to save the preset Launch data
 async function saveLaunch (launch) {
-
-        // Check if the target planet exists in the planet collection
-        const planetExists = await Planets.findOne({
-            KeplerName : launch.target,
-        },);
-
-        if(!planetExists){
-            throw new Error('The target Planet does not exist');
-            
-        }
-
-        await Launches.findOneAndUpdate({
-            flightNumber : launch.flightNumber,
-        }, launch, {
-            upsert : true,
-        });
+    await Launches.findOneAndUpdate({
+        flightNumber : launch.flightNumber,
+    }, launch, {
+        upsert : true,
+    });
 
    
 }
 
-// Save First Launch
-saveLaunch(launch);
+
 
 // Check for the latest flightNumber 
 async function getLatestFlightNumber(){
@@ -55,9 +115,24 @@ async function getLatestFlightNumber(){
         return latestLaunch.flightNumber;
 }
 
+// check if planet exists 
+async function checkPlanet(launch){
+    // Check if the target planet exists in the planet collection
+    const planetExists = await Planets.findOne({
+        KeplerName : launch.target,
+    },);
+
+    if(!planetExists){
+        throw new Error('The target Planet does not exist');
+        
+    }
+
+}
 // Schedule a subsequent new Launch from the request data, with an incremented flightNumber
 async function addNewLaunch(launch){
     try {
+        checkPlanet(launch);
+
         const newFlightNumber = await getLatestFlightNumber() + 1;
      
         const newLaunch = Object.assign(launch, {
@@ -97,15 +172,21 @@ async function existsWithLaunchId(launchId){
     
 }
 
-async function getAllLaunches(){
+async function getAllLaunches(limit, skip){
     return await Launches.find({},
         {'__v' : 0, '_id': 0},
-    );
+    )
+    .sort({
+        flightNumber : 1,
+    })
+    .limit(limit)
+    .skip(skip);
 }
 
 module.exports = {
     getAllLaunches,
     addNewLaunch,
     existsWithLaunchId,
-    abortLaunchById
+    abortLaunchById, 
+    loadLaunchesData,
 }

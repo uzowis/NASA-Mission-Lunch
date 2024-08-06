@@ -1,7 +1,9 @@
 const { getAllLaunches, addNewLaunch, existsWithLaunchId, abortLaunchById } = require('../../models/launches.model');
+const { getPagination } = require('../../services/query');
 
 async function httpGetAllLaunches(req, res){
-    return res.status(200).json( await getAllLaunches());
+    const { limit, skip } = getPagination(req.query)
+    return res.status(200).json( await getAllLaunches(limit, skip));
 }
 
 async function httpAddNewLaunches(req, res){
@@ -47,7 +49,7 @@ async function httpAbortLaunch(req, res){
 
     const aborted = await abortLaunchById(launchId);
     console.log(aborted);
-    
+
     if(!aborted){
         return res.status(400).json({
             error : 'Launch not aborted'
